@@ -23,6 +23,7 @@ public class InventoryController : MonoBehaviour
     [SerializeField] List<ItemData> items;
     [SerializeField] GameObject itemPrefab;
     [SerializeField] Transform canvasTransform;
+    [SerializeField] private ItemGrid inventarioGrid;
 
     //InventoryHighlight inventoryHighlight;
 
@@ -67,6 +68,74 @@ public class InventoryController : MonoBehaviour
             LeftMouseButtonPress();
         }
 
+    }
+    
+    public bool AddItemToInventory(ItemData itemData)
+    {
+        if (inventarioGrid == null)
+        {
+            Debug.LogError("Inventario Grid no asignado en InventoryController");
+            return false;
+        }
+
+        // Crear el item
+        GameObject newItemObj = Instantiate(itemPrefab, canvasTransform);
+        InventoryItem newItem = newItemObj.GetComponent<InventoryItem>();
+        newItem.Set(itemData);
+        
+        // Intentar encontrar espacio en el grid del inventario
+        Vector2Int? posicionLibre = inventarioGrid.FindSpaceForObject(newItem);
+        
+        if (posicionLibre.HasValue)
+        {
+            // Colocar el item en el inventario
+            inventarioGrid.PlaceItem(newItem, posicionLibre.Value.x, posicionLibre.Value.y);
+            newItemObj.transform.SetAsLastSibling();
+            return true;
+        }
+        else
+        {
+            // No hay espacio, destruir el item
+            Destroy(newItemObj);
+            Debug.LogWarning($"No hay espacio en el inventario para: {itemData.name}");
+            return false;
+        }
+    }
+
+    // Método público para agregar item en posición específica (útil para cargar partidas)
+    public bool AddItemToInventoryAtPosition(ItemData itemData, int posX, int posY, bool rotated = false)
+    {
+        if (inventarioGrid == null)
+        {
+            Debug.LogError("Inventario Grid no asignado en InventoryController");
+            return false;
+        }
+
+        // Crear el item
+        GameObject newItemObj = Instantiate(itemPrefab, canvasTransform);
+        InventoryItem newItem = newItemObj.GetComponent<InventoryItem>();
+        newItem.Set(itemData);
+        
+        // Aplicar rotación si es necesario
+        if (rotated)
+        {
+            newItem.Rotate();
+        }
+        
+        // Verificar si la posición es válida
+        if (inventarioGrid.BoundryCheck(posX, posY, newItem.WIDTH, newItem.HEIGHT))
+        {
+            InventoryItem overlap = null;
+            if (inventarioGrid.PlaceItem(newItem, posX, posY, ref overlap))
+            {
+                newItemObj.transform.SetAsLastSibling();
+                return true;
+            }
+        }
+        
+        // Si no se pudo colocar, intentar encontrar espacio automáticamente
+        Destroy(newItemObj);
+        return AddItemToInventory(itemData);
     }
 
     private void RotateItem()

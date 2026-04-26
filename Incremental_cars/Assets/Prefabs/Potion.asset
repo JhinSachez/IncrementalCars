@@ -15,3 +15,4 @@ MonoBehaviour:
   width: 1
   height: 2
   itemIcon: {fileID: 21300000, guid: 52bf7f274195b7646ae2b9e4e5112754, type: 3}
+  itemName: Potion
