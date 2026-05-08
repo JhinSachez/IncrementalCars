@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class InventoryController : MonoBehaviour
 {
@@ -24,6 +25,11 @@ public class InventoryController : MonoBehaviour
     [SerializeField] GameObject itemPrefab;
     [SerializeField] Transform canvasTransform;
     [SerializeField] private ItemGrid inventarioGrid;
+    
+    [Header("Nuevo Sistema de Slots")]
+    [SerializeField] private Transform inventarioContainer;
+    [SerializeField] private GameObject inventorySlotPrefab;
+    private Dictionary<ItemData, InventorySlot> slotsPorItem;
 
     //InventoryHighlight inventoryHighlight;
 
@@ -68,6 +74,91 @@ public class InventoryController : MonoBehaviour
             LeftMouseButtonPress();
         }
 
+    }
+    
+    private void InicializarSlots()
+    {
+        slotsPorItem = new Dictionary<ItemData, InventorySlot>();
+    }
+    
+    public void CrearItemParaGrid(ItemData itemData)
+    {
+        // Crear el item igual que en CreateRandomItem() pero con el item específico
+        InventoryItem inventoryItem = Instantiate(itemPrefab).GetComponent<InventoryItem>();
+        selectedItem = inventoryItem;
+    
+        rectTransform = inventoryItem.GetComponent<RectTransform>();
+        rectTransform.SetParent(canvasTransform);
+        rectTransform.SetAsLastSibling();
+    
+        // Configurar el item con los datos del item seleccionado
+        inventoryItem.Set(itemData);
+    
+        Debug.Log($"Item {itemData.name} creado para colocar en el grid");
+    }
+    
+    public void AgregarItemAlInventario(ItemData item, int cantidad = 1)
+    {
+        if (slotsPorItem == null)
+            slotsPorItem = new Dictionary<ItemData, InventorySlot>();
+    
+        // Verificar si el slot existe y no ha sido destruido
+        if (slotsPorItem.ContainsKey(item) && slotsPorItem[item] != null)
+        {
+            slotsPorItem[item].AgregarCantidad(cantidad);
+        }
+        else
+        {
+            // Si la clave existe pero el slot es nulo, removerla
+            if (slotsPorItem.ContainsKey(item))
+                slotsPorItem.Remove(item);
+        
+            // Crear nuevo slot
+            GameObject nuevoSlot = Instantiate(inventorySlotPrefab, inventarioContainer);
+            InventorySlot slot = nuevoSlot.GetComponent<InventorySlot>();
+            slot.Configurar(item, cantidad, this);
+            slotsPorItem.Add(item, slot);
+        }
+    }
+
+// Nuevo método para remover items
+    public void RemoverItemDelInventario(ItemData item, int cantidad = 1)
+    {
+        if (slotsPorItem == null) return;
+    
+        if (slotsPorItem.ContainsKey(item))
+        {
+            if (slotsPorItem[item].RemoverCantidad(cantidad))
+            {
+                if (slotsPorItem[item].GetCantidad() <= 0)
+                {
+                    Destroy(slotsPorItem[item].gameObject);
+                    slotsPorItem.Remove(item);
+                }
+            }
+        }
+    }
+    
+    public void LimpiarSlotNulo(ItemData item)
+    {
+        if (slotsPorItem != null && slotsPorItem.ContainsKey(item) && slotsPorItem[item] == null)
+        {
+            slotsPorItem.Remove(item);
+        }
+    }
+
+// Método para manejar cuando se suelta un item desde el slot
+    public void OnItemDroppedFromSlot(InventorySlot slot, PointerEventData eventData)
+    {
+        // Por ahora solo regresa el item (no hace nada extra)
+        Debug.Log($"Item {slot.GetItemData().name} soltado");
+    }
+
+// Método para verificar si tienes cierto item
+    public bool TieneItemEnInventario(ItemData item, int cantidadRequerida = 1)
+    {
+        if (slotsPorItem == null) return false;
+        return slotsPorItem.ContainsKey(item) && slotsPorItem[item].GetCantidad() >= cantidadRequerida;
     }
     
     public bool AddItemToInventory(ItemData itemData)
